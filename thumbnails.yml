@@ -1,0 +1,39 @@
+name: Generate Thumbnails
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/**'
+
+permissions:
+  contents: write
+
+jobs:
+  thumbnails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ImageMagick
+        run: sudo apt-get install -y imagemagick
+
+      - name: Generate thumbnails
+        run: |
+          mkdir -p images/thumbnails
+          find images -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) | while read img; do
+            filename=$(basename "$img")
+            thumb="images/thumbnails/$filename"
+            if [ ! -f "$thumb" ]; then
+              echo "Generating thumbnail for $filename"
+              convert "$img" -resize 300x300^ -gravity Center -extent 300x300 "$thumb"
+            fi
+          done
+
+      - name: Commit and push thumbnails
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add images/thumbnails/
+          git diff --staged --quiet || git commit -m "chore: auto-generate thumbnails [skip ci]"
+          git push
